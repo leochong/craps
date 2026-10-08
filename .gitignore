@@ -1,0 +1,36 @@
+# Reference / raw media (huge, unannotated)
+*.MOV
+*.mov
+*.mp4
+*.avi
+*.mkv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Artifacts / outputs
+out/
+output/
+artifacts/
+annotations/*.json
+!annotations/.gitkeep
+
+# Data / builds
+*.onnx
+*.pt
+*.mlmodel
+build/
+dist/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
