@@ -51,6 +51,11 @@ KEYPOINT_NAMES = [f"corner_{i}" for i in range(NUM_CORNERS)] + [
 FACE_TO_KEYPOINT = {v: NUM_CORNERS + (v - 1) for v in range(1, NUM_FACE_CENTERS + 1)}
 KEYPOINT_TO_FACE = {k: v for v, k in FACE_TO_KEYPOINT.items()}
 
+CORNER_FACES = (
+    (4, 3, 5), (1, 3, 5), (4, 2, 5), (1, 2, 5),
+    (4, 3, 0), (1, 3, 0), (4, 2, 0), (1, 2, 0),
+)
+
 
 def die_keypoints_3d(scale=1.0):
     """Return the 14 canonical keypoints (corners then face centers); scale=die side."""
@@ -61,6 +66,24 @@ def die_keypoints_3d(scale=1.0):
 def face_center_3d(face_value, scale=1.0):
     """Return the 3D center of a face value in die-side units."""
     return FACE_Z * FACE_NORMALS[face_value - 1] * float(scale)
+
+
+def keypoints_from_pose(R, tvec, K, scale=1.0, face=None):
+    """Project the 14 canonical keypoints through a die pose (R, tvec) into pixels."""
+    R = np.asarray(R, dtype=np.float64).reshape(3, 3)
+    tvec = np.asarray(tvec, dtype=np.float64).reshape(3)
+    K = np.asarray(K, dtype=np.float64).reshape(3, 3)
+    cam = die_keypoints_3d(scale) @ R.T + tvec
+    z = np.where(np.abs(cam[:, 2]) < 1e-9, 1e-9, cam[:, 2])
+    uv = (cam[:, :2] / z[:, None]) @ K[:2, :2].T + K[:2, 2]
+    face_vis = (FACE_NORMALS @ R.T)[:, 2] > 0.0
+    visible = np.zeros(NUM_KEYPOINTS, dtype=np.float64)
+    for i, faces in enumerate(CORNER_FACES):
+        visible[i] = 1.0 if any(face_vis[f] for f in faces) else 0.0
+    visible[NUM_CORNERS:] = face_vis.astype(np.float64)
+    if face is not None and face in FACE_TO_KEYPOINT:
+        visible[FACE_TO_KEYPOINT[face]] = 1.0
+    return DieLabel(keypoints=uv, visible=visible, face=face)
 
 
 def normalize_keypoints(keypoints, width, height):
