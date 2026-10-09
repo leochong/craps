@@ -25,6 +25,7 @@ annotations/*.json
 
 # Data / builds
 data/
+datasets/
 .env
 *.onnx
 *.pt
