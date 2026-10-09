@@ -42,7 +42,9 @@ def gql(api_key, query, variables):
     body = json.dumps({"query": query, "variables": variables}).encode()
     req = urllib.request.Request(
         f"{API}?api_key={api_key}", data=body,
-        headers={"content-type": "application/json"}, method="POST",
+        headers={"content-type": "application/json",
+                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+        method="POST",
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         return json.loads(resp.read())
@@ -60,18 +62,32 @@ def main():
     ap.add_argument("--cloud-type", default="ALL")
     ap.add_argument("--disk", type=int, default=60)
     ap.add_argument("--volume", type=int, default=60)
+    ap.add_argument("--public-key-file", default=None,
+                    help="SSH public key file; enables SSH and skips dockerArgs")
     args = ap.parse_args()
 
     api_key = load_api_key()
     if not api_key:
         sys.exit("ERROR: set RUNPOD_API_KEY (env var) or put RUNPOD_API_KEY=... in .env")
 
-    bootstrap = (
-        "bash -lc 'cd /workspace && "
-        '[ -d craps/.git ] || git clone --depth 1 "$REPO_URL" craps && '
-        'REPO_URL="$REPO_URL" INPUT_URL="$INPUT_URL" START="$START" DURATION="$DURATION" '
-        "bash craps/runpod/pod_bootstrap.sh'"
-    )
+    env = [
+        {"key": "REPO_URL", "value": args.repo_url},
+        {"key": "INPUT_URL", "value": args.input_url},
+        {"key": "START", "value": str(args.start)},
+        {"key": "DURATION", "value": str(args.duration)},
+    ]
+
+    if args.public_key_file:
+        with open(args.public_key_file) as fh:
+            env.append({"key": "PUBLIC_KEY", "value": fh.read().strip()})
+        docker_args = ""
+    else:
+        docker_args = (
+            "bash -c 'cd /workspace && "
+            '[ -d craps/.git ] || git clone --depth 1 "$REPO_URL" craps; '
+            'REPO_URL="$REPO_URL" INPUT_URL="$INPUT_URL" START="$START" DURATION="$DURATION" '
+            "bash craps/runpod/pod_bootstrap.sh'"
+        )
 
     payload = {
         "cloudType": args.cloud_type,
@@ -81,15 +97,10 @@ def main():
         "gpuTypeId": args.gpu_type,
         "name": args.name,
         "imageName": args.image,
-        "dockerArgs": bootstrap,
+        "dockerArgs": docker_args,
         "ports": "8888/http,22/tcp",
         "volumeMountPath": "/workspace",
-        "env": [
-            {"key": "REPO_URL", "value": args.repo_url},
-            {"key": "INPUT_URL", "value": args.input_url},
-            {"key": "START", "value": str(args.start)},
-            {"key": "DURATION", "value": str(args.duration)},
-        ],
+        "env": env,
     }
 
     result = gql(api_key, MUTATION, {"input": payload})
