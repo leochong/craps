@@ -18,6 +18,7 @@ venv/
 # Artifacts / outputs
 out/
 output/
+work/
 artifacts/
 annotations/*.json
 !annotations/.gitkeep

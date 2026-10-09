@@ -1,0 +1,10 @@
+# Core pipeline deps for the RunPod GPU image.
+# NOTE: the FILM repo (https://github.com/google-research/frame-interpolation)
+# ships its own requirements (gin-config, etc.) - install those after cloning.
+numpy
+opencv-python-headless
+torch
+torchvision
+av
+realesrgan
+basicsr
