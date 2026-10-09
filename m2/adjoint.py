@@ -64,6 +64,28 @@ def make_target(theta_true, spec, sample_n=50, noise=0.0, seed=0):
     return {"times": times, "pos": pos, "theta_true": np.asarray(theta_true, dtype=float)}
 
 
+def target_from_trajectory(trajectory, allow_synthetic=False):
+    """Build a calibration target from a measured trajectory (m1 Trajectory or dict).
+
+    Synthetic/interpolated tracks are rejected unless `allow_synthetic=True`.
+    """
+    if isinstance(trajectory, dict):
+        synthetic = bool(trajectory.get("synthetic", False))
+        times = trajectory["times"]
+        pos = trajectory["pos"]
+        asset_id = trajectory.get("asset_id")
+    else:
+        synthetic = bool(getattr(trajectory, "synthetic", False))
+        times = getattr(trajectory, "times")
+        pos = getattr(trajectory, "pos")
+        asset_id = getattr(trajectory, "asset_id", None)
+    if synthetic and not allow_synthetic:
+        raise ValueError("synthetic trajectory cannot supervise calibration")
+    times = np.asarray(times, dtype=float).reshape(-1)
+    pos = np.asarray(pos, dtype=float).reshape(-1, 3)
+    return {"times": times, "pos": pos, "source": "trajectory", "asset_id": asset_id}
+
+
 def residual(theta, target, spec):
     ts, xs = run_trajectory(theta, spec)
     pred = _interp(ts, xs, target["times"])
