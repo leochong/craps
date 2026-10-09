@@ -69,9 +69,13 @@ At 1080p30, impacts last tens of milliseconds and are effectively sub-frame, so:
    `mu_dome/e_dome/mu_bumper/e_bumper/angular_damping` when active).
 4. `python -m scripts.predict --calibration out/fit_calibration.json`
    → **unvalidated** P(2..12) + EV/Kelly table from the fitted twin. Do not read
-   the edge as real until the forward-fidelity gate (Phase B) passes.
-5. `python -m scripts.validate_trajectory.py`, `validate_calib_geom.py`,
-   `validate_calibration.py`, `validate_end2end.py` → plumbing/geometry checks.
+   the edge as real until the forward-fidelity gate passes.
+5. `python -m scripts.forward_fidelity --calibration out/fit_calibration.json [--gate]`
+   → simulated-vs-measured divergence over the first impacts; `--gate` exits
+   nonzero if the worst relative divergence exceeds 8%.
+6. `python -m scripts.validate_trajectory.py`, `validate_calib_geom.py`,
+   `validate_calibration.py`, `validate_end2end.py`, `validate_forward.py`,
+   `validate_reliability.py` → plumbing/geometry/fidelity/calibration checks.
 
 Multi-clip calibration is the reason to collect several rolls per session: a
 single clip may leave a parameter unidentifiable (condition number `inf`), while
