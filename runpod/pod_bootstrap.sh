@@ -21,6 +21,12 @@ echo "== clone pipeline =="
 [ -d "$CLONE_DIR/.git" ] || git clone --depth 1 "$REPO_URL" "$CLONE_DIR"
 cd "$CLONE_DIR"
 
+echo "== system deps =="
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  apt-get update -y && apt-get install -y ffmpeg
+fi
+ffmpeg -hide_banner -encoders 2>/dev/null | grep -i nvenc || echo "WARNING: no NVENC in pod ffmpeg"
+
 echo "== python deps =="
 pip install --no-cache-dir -U pip
 pip install --no-cache-dir numpy opencv-python-headless av realesrgan basicsr yt-dlp
