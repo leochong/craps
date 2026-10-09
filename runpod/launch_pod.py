@@ -17,6 +17,20 @@ import urllib.request
 
 API = "https://api.runpod.io/graphql"
 
+
+def load_api_key():
+    key = os.environ.get("RUNPOD_API_KEY")
+    if key:
+        return key.strip()
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    if os.path.exists(env_path):
+        with open(env_path) as fh:
+            for line in fh:
+                line = line.strip()
+                if line.startswith("RUNPOD_API_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return None
+
 MUTATION = (
     "mutation($input: PodFindAndDeployOnDemandInput!) {"
     " podFindAndDeployOnDemand(input: $input) { id name imageName machineId desiredStatus }"
@@ -48,9 +62,9 @@ def main():
     ap.add_argument("--volume", type=int, default=60)
     args = ap.parse_args()
 
-    api_key = os.environ.get("RUNPOD_API_KEY")
+    api_key = load_api_key()
     if not api_key:
-        sys.exit("ERROR: set RUNPOD_API_KEY in the environment")
+        sys.exit("ERROR: set RUNPOD_API_KEY (env var) or put RUNPOD_API_KEY=... in .env")
 
     bootstrap = (
         "bash -lc 'cd /workspace && "
