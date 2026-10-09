@@ -60,14 +60,18 @@ At 1080p30, impacts last tens of milliseconds and are effectively sub-frame, so:
 ## Processing pipeline
 
 1. `python -m scripts.track_clip.py --video <clip> --asset-id <id> [--frames 0:120]`
-   → plate calibration + `datasets/trajectories/<id>.jsonl`.
+   → felt-ellipse plane calibration (circle-from-ellipse pose) + machine-frame
+   `datasets/trajectories/<id>.jsonl`. Measure the felt radius; it fixes metric scale.
 2. `python -m scripts.fit_clip.py --asset-id <id> --active mu_felt,impulse`
    → single-clip fit and identifiability report.
 3. `python -m scripts.fit_calibration.py --active mu_felt,e_felt,impulse`
    → shared parameters fitted across all trajectory clips (multi-clip; adds
    `mu_dome/e_dome/mu_bumper/e_bumper/angular_damping` when active).
-4. `python -m scripts.validate_trajectory.py` and
-   `python -m scripts.validate_calibration.py` → bridge/multi-clip plumbing checks.
+4. `python -m scripts.predict --calibration out/fit_calibration.json`
+   → **unvalidated** P(2..12) + EV/Kelly table from the fitted twin. Do not read
+   the edge as real until the forward-fidelity gate (Phase B) passes.
+5. `python -m scripts.validate_trajectory.py`, `validate_calib_geom.py`,
+   `validate_calibration.py`, `validate_end2end.py` → plumbing/geometry checks.
 
 Multi-clip calibration is the reason to collect several rolls per session: a
 single clip may leave a parameter unidentifiable (condition number `inf`), while
