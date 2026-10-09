@@ -75,6 +75,7 @@ def main():
         {"key": "INPUT_URL", "value": args.input_url},
         {"key": "START", "value": str(args.start)},
         {"key": "DURATION", "value": str(args.duration)},
+        {"key": "NVIDIA_DRIVER_CAPABILITIES", "value": "all"},
     ]
 
     if args.public_key_file:

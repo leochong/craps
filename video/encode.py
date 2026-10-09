@@ -49,9 +49,23 @@ def ffmpeg_has_nvenc(ffmpeg="ffmpeg"):
     return "hevc_nvenc" in out.stdout or "h264_nvenc" in out.stdout
 
 
-def make_encoder(path, fps, size, prefer_nvenc=True):
-    if prefer_nvenc and ffmpeg_has_nvenc():
-        return FfmpegNvencEncoder(path, fps, size)
+def nvenc_works(ffmpeg="ffmpeg"):
+    if not ffmpeg_has_nvenc(ffmpeg):
+        return False
+    try:
+        out = subprocess.run(
+            [ffmpeg, "-hide_banner", "-loglevel", "error",
+             "-f", "lavfi", "-i", "testsrc=size=256x144:rate=5",
+             "-c:v", "hevc_nvenc", "-frames:v", "5", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=30)
+        return out.returncode == 0
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return False
+
+
+def make_encoder(path, fps, size, prefer_nvenc=True, ffmpeg="ffmpeg"):
+    if prefer_nvenc and nvenc_works(ffmpeg):
+        return FfmpegNvencEncoder(path, fps, size, ffmpeg=ffmpeg)
     return OpenCVEncoder(path, fps, size)
 
 
