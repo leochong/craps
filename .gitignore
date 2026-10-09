@@ -24,6 +24,7 @@ annotations/*.json
 !annotations/.gitkeep
 
 # Data / builds
+data/
 *.onnx
 *.pt
 *.mlmodel
