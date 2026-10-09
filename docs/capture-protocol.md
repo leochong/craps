@@ -62,8 +62,17 @@ At 1080p30, impacts last tens of milliseconds and are effectively sub-frame, so:
 1. `python -m scripts.track_clip.py --video <clip> --asset-id <id> [--frames 0:120]`
    → plate calibration + `datasets/trajectories/<id>.jsonl`.
 2. `python -m scripts.fit_clip.py --asset-id <id> --active mu_felt,impulse`
-   → fitted low-order parameters and identifiability report.
-3. `python -m scripts.validate_trajectory.py` → bridge/plumbing checks.
+   → single-clip fit and identifiability report.
+3. `python -m scripts.fit_calibration.py --active mu_felt,e_felt,impulse`
+   → shared parameters fitted across all trajectory clips (multi-clip; adds
+   `mu_dome/e_dome/mu_bumper/e_bumper/angular_damping` when active).
+4. `python -m scripts.validate_trajectory.py` and
+   `python -m scripts.validate_calibration.py` → bridge/multi-clip plumbing checks.
+
+Multi-clip calibration is the reason to collect several rolls per session: a
+single clip may leave a parameter unidentifiable (condition number `inf`), while
+stacking diverse launches constrains it. Expand the active set only while
+`cond(J)` stays finite and the held-out divergence gate holds.
 
 ## When to invest in more (or higher-fps) footage
 
