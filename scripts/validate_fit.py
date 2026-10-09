@@ -53,12 +53,25 @@ def bench_gradient_nonsmooth():
                  f"grad_mu h=1e-3:{g1[0]:.4f} vs h=1e-5:{g2[0]:.4f}")
 
 
+def bench_mu_conditioning():
+    conds = {}
+    for damp in (0.0, 5.0):
+        spec = build_spec(steps=500)
+        spec["elevation"] = 0.2
+        spec["geom"]["angular_damping"] = damp
+        target = adjoint.make_target(TRUE_THETA, spec, sample_n=40)
+        conds[damp] = adjoint.identifiability(TRUE_THETA, target, spec, active=[0, 1, 2])["condition_number"]
+    return check("rolling resistance improves mu conditioning", conds[5.0] < conds[0.0],
+                 f"cond(damp=0)={conds[0.0]:.1f} -> cond(damp=5)={conds[5.0]:.1f}")
+
+
 def main():
     results = [
         bench_cmaes_sphere(),
         bench_drop_identifiability(),
         bench_drop_recovery(),
         bench_gradient_nonsmooth(),
+        bench_mu_conditioning(),
     ]
     print(f"\n{sum(results)}/{len(results)} M3 benchmarks passed")
     sys.exit(0 if all(results) else 1)

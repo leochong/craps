@@ -118,6 +118,19 @@ def bench_inertia():
     return check("cube inertia", abs(invI - expected) < 1e-12 and abs(b.inv_inertia - expected) < 1e-12)
 
 
+def bench_angular_damping():
+    damping = 2.0
+    world = World(geometry=Geometry(angular_damping=damping), collisions=False, gravity=(0.0, 0.0, 0.0))
+    b = Body(side=SIDE, mass=MASS, omega=(0.0, 10.0, 0.0))
+    world.bodies = [b]
+    n = 500
+    for _ in range(n):
+        world.step(record=False)
+    expected = 10.0 * np.exp(-damping * n * DT)
+    return check("angular damping (rolling resistance)", abs(b.omega[1] - expected) < 1e-6,
+                 f"omega={b.omega[1]:.5f} vs {expected:.5f}")
+
+
 def bench_containment():
     g = Geometry()
     world = World(geometry=g, dt=DT)
@@ -150,6 +163,7 @@ def main():
         bench_elastic_dice_collision(),
         bench_resting_stability(),
         bench_inertia(),
+        bench_angular_damping(),
         bench_containment(),
     ]
     n_pass = sum(results)

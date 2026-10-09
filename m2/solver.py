@@ -27,6 +27,7 @@ class Solver:
         self.beta = beta
         self.slop = slop
         self.rest_threshold = rest_threshold
+        self._cache = {}
 
     def _apply_impulse(self, idx, P, r):
         if idx < 0:
@@ -91,6 +92,7 @@ class Solver:
             return
 
         P = lam_t * t
+        c.jt_vec = P
         self._apply_impulse(c.a, -P, r_a)
         self._apply_impulse(c.b, P, r_b)
 
@@ -114,8 +116,49 @@ class Solver:
             for c in clist:
                 c.vbias = vb
 
-    def solve_velocity(self, contacts, dt):
+    def _match(self, c):
+        prev = self._cache.get((c.a, c.b))
+        if not prev:
+            return None
+        best = None
+        best_d = 1e9
+        for (pt, jn, jt_vec) in prev:
+            d = np.linalg.norm(pt - c.point)
+            if d < best_d:
+                best_d = d
+                best = (jn, jt_vec)
+        return best if best is not None and best_d < 0.02 else None
+
+    def prepare(self, contacts):
         self._set_restitution_bias(contacts)
+        self._warm_start(contacts)
+
+    def _warm_start(self, contacts):
+        for c in contacts:
+            m = self._match(c)
+            if m is None:
+                continue
+            jn, jt_vec = m
+            c.jn = jn
+            inv_m_a, _, pos_a, _ = _body_inv(self.bodies, c.a)
+            inv_m_b, _, pos_b, _ = _body_inv(self.bodies, c.b)
+            r_a = c.point - pos_a
+            r_b = c.point - pos_b
+            P = jn * c.normal
+            self._apply_impulse(c.a, -P, r_a)
+            self._apply_impulse(c.b, P, r_b)
+            if jt_vec is not None:
+                self._apply_impulse(c.a, -jt_vec, r_a)
+                self._apply_impulse(c.b, jt_vec, r_b)
+                c.jt_vec = jt_vec.copy()
+
+    def update_cache(self, contacts):
+        new = {}
+        for c in contacts:
+            new.setdefault((c.a, c.b), []).append((c.point.copy(), c.jn, c.jt_vec))
+        self._cache = new
+
+    def solve_velocity(self, contacts, dt):
         for _ in range(self.iterations):
             for c in contacts:
                 self._solve_normal(c)

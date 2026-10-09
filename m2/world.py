@@ -21,6 +21,7 @@ class Geometry:
     e_bumper: float = 0.6
     mu_dice: float = 0.3
     e_dice: float = 0.6
+    angular_damping: float = 0.5
 
 
 class World:
@@ -52,15 +53,22 @@ class World:
 
     def step(self, record=True):
         self.solver.bodies = self.bodies
+        damping = self.geometry.angular_damping
         for b in self.bodies:
             b.apply_gravity(self.gravity, self.dt)
+            if damping:
+                b.omega = b.omega * np.exp(-damping * self.dt)
 
         contacts = generate_contacts(self) if self.collisions else []
         if contacts:
             self.contact_frames += 1
             for c in contacts:
                 self.max_penetration = max(self.max_penetration, c.depth)
+            self.solver.prepare(contacts)
             self.solver.solve_velocity(contacts, self.dt)
+            self.solver.update_cache(contacts)
+        else:
+            self.solver.update_cache([])
 
         for b in self.bodies:
             b.integrate(self.dt)

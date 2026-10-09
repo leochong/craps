@@ -6,7 +6,7 @@ _EPS = 1e-9
 
 
 class Contact:
-    __slots__ = ("a", "b", "normal", "point", "depth", "mu", "e", "jn", "jt", "vbias")
+    __slots__ = ("a", "b", "normal", "point", "depth", "mu", "e", "jn", "jt", "vbias", "jt_vec")
 
     def __init__(self, a, b, normal, point, depth, mu, e):
         self.a = a
@@ -19,6 +19,7 @@ class Contact:
         self.jn = 0.0
         self.jt = 0.0
         self.vbias = None
+        self.jt_vec = None
 
 
 def _static_contacts(world, ai):
