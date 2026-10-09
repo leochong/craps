@@ -15,6 +15,7 @@ import numpy as np
 
 from m1.dataset import VideoDataset, probe_video
 from m1.labels import (
+    FACE_TO_KEYPOINT,
     NUM_KEYPOINTS,
     FrameLabel,
     decode_heatmaps,
@@ -22,16 +23,21 @@ from m1.labels import (
     encode_heatmaps,
     encode_keypoints,
     frame_labels_from_roll,
+    keypoints_from_pose,
+    validate_die_label,
     validate_label,
 )
+from m1.pose import default_intrinsics
 from m1.roll_annotation import DieMark, Roll, RollSet
 from m1.torch_dataset import KeypointDataset, has_torch
+from scripts.annotate_keypoints import auto_annotate, detect_frame_labels
 
 WORK = "out/train_validate"
 CLIP = os.path.join(WORK, "clip.mp4")
 ROLLS = os.path.join(WORK, "rolls.json")
 TRAIN = os.path.join(WORK, "train_keypoints.jsonl")
 SYNTH_TRAIN = os.path.join(WORK, "synth_only.jsonl")
+AUTO_TRAIN = os.path.join(WORK, "auto_keypoints.jsonl")
 ROOT = os.path.join(WORK, "datasets")
 
 
@@ -189,6 +195,43 @@ def bench_torch_collate():
     return check("torch collate_fn", ok, f"images={tuple(images.shape)}")
 
 
+def bench_pose_keypoints():
+    K = default_intrinsics(640, 480)
+    frontal = keypoints_from_pose(np.eye(3), [0.0, 0.0, 3.0], K, face=1)
+    center = frontal.keypoints[FACE_TO_KEYPOINT[1]]
+    center_ok = np.allclose(center, [320.0, 240.0], atol=1e-6)
+    vis_ok = frontal.visible[FACE_TO_KEYPOINT[1]] == 1.0 and validate_die_label(frontal, 640, 480) == []
+
+    a = np.pi / 2.0
+    rot_x = np.array([[1.0, 0.0, 0.0], [0.0, np.cos(a), -np.sin(a)], [0.0, np.sin(a), np.cos(a)]])
+    rotated = keypoints_from_pose(rot_x, [0.0, 0.0, 3.0], K, face=1)
+    rotated_ok = validate_die_label(rotated, 640, 480) == [] and float(rotated.visible.sum()) >= 1.0
+    ok = center_ok and vis_ok and rotated_ok
+    return check("pose -> 14 keypoints", ok,
+                 f"face1_center={np.round(center, 2).tolist()} visible={vis_ok} rotated={rotated_ok}")
+
+
+def bench_auto_annotation():
+    labels = auto_annotate(CLIP, AUTO_TRAIN, "clip", calib=None, val_frac=0.3, seed=1)
+    errors = [e for label in labels for e in validate_label(label)]
+    loaded = FrameLabel.from_dict(json.loads(open(AUTO_TRAIN).readline())) if labels else None
+    detect_ok = isinstance(detect_frame_labels(_read_first_frame(CLIP), None), list)
+    ok = os.path.exists(AUTO_TRAIN) and not errors and detect_ok
+    if labels:
+        ok = ok and loaded is not None and all(label.split == "val" or label.split == "train" for label in labels)
+    return check("auto keypoint annotation", ok,
+                 f"labels={len(labels)} errors={errors} detect_ok={detect_ok}")
+
+
+def _read_first_frame(path):
+    import cv2
+
+    cap = cv2.VideoCapture(path)
+    ok, frame = cap.read()
+    cap.release()
+    return frame
+
+
 def main():
     if os.path.exists(WORK):
         shutil.rmtree(WORK)
@@ -203,6 +246,8 @@ def main():
         bench_dataset_samples(),
         bench_synthetic_excluded(),
         bench_encode_decode(),
+        bench_pose_keypoints(),
+        bench_auto_annotation(),
         bench_smoke(),
         bench_torch_collate(),
     ]

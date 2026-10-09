@@ -57,6 +57,21 @@ At 1080p30, impacts last tens of milliseconds and are effectively sub-frame, so:
 - Use `adjoint.identifiability` (condition number) as the gate: if it diverges for
   a parameter, do not trust it at this frame rate.
 
+## Keypoint annotation (M1 detector)
+
+Original-resolution frames only; synthetic/interpolated frames are rejected.
+
+1. `python -m scripts.annotate_keypoints --video <clip> --asset-id <id> --auto-only`
+   → headless auto-labels (`datasets/cv/keypoints_<id>.jsonl`); good for bootstrapping.
+2. `python -m scripts.annotate_keypoints --video <clip> --asset-id <id>`
+   → HITL review: accept/correct per-frame 14-keypoint die labels.
+3. `python -m m1.train --video-manifest datasets/cv/manifest.jsonl
+   --train-manifest datasets/cv/keypoints_<id>.jsonl --epochs 20 --out out/train`
+   → train the keypoint net (needs torch/GPU; runs on RunPod).
+
+Split is assigned per clip (`--val-frac`/`--seed`), so frames from one clip never
+leak across train/val.
+
 ## Processing pipeline
 
 1. `python -m scripts.track_clip.py --video <clip> --asset-id <id> [--frames 0:120]`
